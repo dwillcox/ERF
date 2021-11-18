@@ -288,6 +288,7 @@ void
 ERF::buildMetrics()
 {
 //  const int ngrd = grids.size();
+
 //  const amrex::Real* dx = geom.CellSize();
 
   volume.clear();
