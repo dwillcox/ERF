@@ -7,11 +7,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0
-
-      - name: Get submodules
-        run: |
-          git submodule update --init
+          submodules: true
 
       - name: Install dependencies
         run: |
