@@ -240,6 +240,7 @@ void erf_advance(int level,
     // any state data (e.g. at RK stages or at the end of a timestep)
     integrator.set_rhs(rhs_fun);
     integrator.set_fast_rhs(rhs_fun_fast);
+    integrator.set_slow_fast_timestep_ratio(2);
     integrator.set_post_update(post_update_fun);
 
     // **************************************************************************************
