@@ -260,6 +260,24 @@ void ERF::erf_advance(int level,
                      fast_dt, inv_fac);
     };
 
+    auto mri_fast_rhs_fun = [&](  Vector<MultiFab>& S_rhs,
+                                  Vector<MultiFab>& S_slow_rhs,
+                                  Vector<MultiFab>& S_stage_data,
+                            const Vector<MultiFab>& S_data,
+                                  Vector<MultiFab>& S_scratch,
+                            const Real fast_dt, const Real inv_fac)
+    {
+        if (verbose) amrex::Print() << "Calling MRI fast rhs at level " << level << " with dt = " << fast_dt << std::endl;
+        erf_mri_fast_rhs(level, S_rhs, S_slow_rhs, S_stage_data, S_prim,
+                     S_data, S_scratch, advflux, fine_geom, ifr, solverChoice,
+#ifdef ERF_USE_TERRAIN
+                     z_phys_nd[level], detJ_cc[level], r0, p0,
+#else
+                     dptr_dens_hse, dptr_pres_hse,
+#endif
+                     fast_dt, inv_fac);
+    };
+
     auto post_update_fun = [&](Vector<MultiFab>& S_data, const Real time_for_fp)
     {
         apply_bcs(S_data, time_for_fp);
@@ -297,6 +315,7 @@ void ERF::erf_advance(int level,
       // define rhs and 'post update' utility function that is called after calculating
       // any state data (e.g. at RK stages or at the end of a timestep)
       lev_integrator.set_rhs(rhs_fun);
+      lev_integrator.set_fast_rhs(mri_fast_rhs_fun);
       if (fixed_fast_dt > 0.0)
         lev_integrator.set_fast_timestep(fixed_fast_dt);
       else
