@@ -477,13 +477,14 @@ ComputeMetricAtEdgeCenterI (int i, int j, int k,
 //*****************************************************************************************
 // Map between W <--> Omega
 //*****************************************************************************************
+template<typename T1, typename T2, typename T3>
 AMREX_GPU_DEVICE
 AMREX_FORCE_INLINE
 amrex::Real
 OmegaFromW (int i, int j, int k, amrex::Real w,
-            const amrex::Array4<const amrex::Real> u,
-            const amrex::Array4<const amrex::Real> v,
-            const amrex::Array4<const amrex::Real> z_nd,
+            T1 u,
+            T2 v,
+            T3 z_nd,
             const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM>& dxInv)
 {
   // This is dh/dxi at z-face (i,j,k-1/2)
@@ -519,13 +520,14 @@ OmegaFromW (int i, int j, int k, amrex::Real w,
   return omega;
 }
 
+template<typename T1, typename T2, typename T3>
 AMREX_GPU_DEVICE
 AMREX_FORCE_INLINE
 amrex::Real
 WFromOmega (int i, int j, int k, amrex::Real omega,
-            const amrex::Array4<const amrex::Real>& u,
-            const amrex::Array4<const amrex::Real>& v,
-            const amrex::Array4<const amrex::Real>& z_nd,
+            T1& u,
+            T2& v,
+            T3& z_nd,
             const amrex::GpuArray<amrex::Real, AMREX_SPACEDIM>& dxInv)
 {
   // This is dh/dxi at z-face (i,j,k-1/2)
