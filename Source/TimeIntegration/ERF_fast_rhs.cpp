@@ -58,17 +58,17 @@ void erf_fast_rhs (int level, const Real time,
     const auto& ba = S_stage_data[IntVar::cons].boxArray();
     const auto& dm = S_stage_data[IntVar::cons].DistributionMap();
 
-    MultiFab Delta_rho_u(    convert(ba,IntVect(1,0,0)), dm, 1, 1);
-    MultiFab Delta_rho_v(    convert(ba,IntVect(0,1,0)), dm, 1, 1);
-    MultiFab Delta_rho_w(    convert(ba,IntVect(0,0,1)), dm, 1, IntVect(1,1,0));
-    MultiFab Delta_rho  (            ba                , dm, 1, 1);
-    MultiFab Delta_rho_theta(        ba                , dm, 1, 1);
+    // MultiFab Delta_rho_u(    convert(ba,IntVect(1,0,0)), dm, 1, 1);
+    // MultiFab Delta_rho_v(    convert(ba,IntVect(0,1,0)), dm, 1, 1);
+    // MultiFab Delta_rho_w(    convert(ba,IntVect(0,0,1)), dm, 1, IntVect(1,1,0));
+    // MultiFab Delta_rho  (            ba                , dm, 1, 1);
+    // MultiFab Delta_rho_theta(        ba                , dm, 1, 1);
 
     MultiFab New_rho_u(convert(ba,IntVect(1,0,0)), dm, 1, 1);
     MultiFab New_rho_v(convert(ba,IntVect(0,1,0)), dm, 1, 1);
     MultiFab New_rho_w(convert(ba,IntVect(0,0,1)), dm, 1, 1);
 
-    MultiFab Exner_mf(convert(ba,IntVect(1,1,1)), dm, 1, 1);
+    // MultiFab Exner_mf(convert(ba,IntVect(1,1,1)), dm, 1, 1);
 
     // *************************************************************************
     // Set gravity as a vector
@@ -86,7 +86,7 @@ void erf_fast_rhs (int level, const Real time,
         mhi_mf_y = &(ifr->mask(Orientation(1,Orientation::high)));
     }
 
-    MultiFab extrap(S_data[IntVar::cons].boxArray(),S_data[IntVar::cons].DistributionMap(),1,1);
+    // MultiFab extrap(S_data[IntVar::cons].boxArray(),S_data[IntVar::cons].DistributionMap(),1,1);
 
     // *************************************************************************
     // Define updates in the current RK stage
@@ -122,11 +122,11 @@ void erf_fast_rhs (int level, const Real time,
         const Array4<const Real> & cell_stage_zmom = S_stage_data[IntVar::zmom].const_array(mfi);
         const Array4<const Real> & prim            = S_stage_prim.const_array(mfi);
 
-        const Array4<Real>& old_drho_u     = Delta_rho_u.array(mfi);
-        const Array4<Real>& old_drho_v     = Delta_rho_v.array(mfi);
-        const Array4<Real>& old_drho_w     = Delta_rho_w.array(mfi);
-        const Array4<Real>& old_drho       = Delta_rho.array(mfi);
-        const Array4<Real>& old_drho_theta = Delta_rho_theta.array(mfi);
+        // const Array4<Real>& old_drho_u     = Delta_rho_u.array(mfi);
+        // const Array4<Real>& old_drho_v     = Delta_rho_v.array(mfi);
+        // const Array4<Real>& old_drho_w     = Delta_rho_w.array(mfi);
+        // const Array4<Real>& old_drho       = Delta_rho.array(mfi);
+        // const Array4<Real>& old_drho_theta = Delta_rho_theta.array(mfi);
 
         const Array4<      Real>& fast_rhs_cons  = S_rhs[IntVar::cons].array(mfi);
         const Array4<      Real>& fast_rhs_rho_u = S_rhs[IntVar::xmom].array(mfi);
@@ -142,7 +142,7 @@ void erf_fast_rhs (int level, const Real time,
         const Array4<      Real>& new_drho_v = New_rho_v.array(mfi);
         const Array4<      Real>& new_drho_w = New_rho_w.array(mfi);
 
-        const Array4<      Real>& Exner_arr  = Exner_mf.array(mfi);
+        // const Array4<      Real>& Exner_arr  = Exner_mf.array(mfi);
 
         const Array4<const Real>& cur_data_cons = S_data[IntVar::cons].const_array(mfi);
         const Array4<const Real>& cur_data_xmom = S_data[IntVar::xmom].const_array(mfi);
@@ -163,7 +163,7 @@ void erf_fast_rhs (int level, const Real time,
         const Array4<const Real>& r0_arr = r0->const_array(mfi);
         const Array4<const Real>& p0_arr = p0->const_array(mfi);
 
-        const Array4<Real>& extrap_arr = extrap.array(mfi);
+        // const Array4<Real>& extrap_arr = extrap.array(mfi);
 
         // Create old_drho_u/v/w/theta  = U'', V'', W'', Theta'' in the docs
         // Note that we do the Copy and Subtract including one ghost cell
@@ -176,31 +176,60 @@ void erf_fast_rhs (int level, const Real time,
         const Box gtbz  = mfi.nodaltilebox(2).grow(IntVect(1,1,0));
         const Box gntbx = mfi.nodaltilebox().grow(1);
 
-        amrex::ParallelFor(gbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
-            old_drho(i,j,k)       = cur_data_cons(i,j,k,Rho_comp)      - cell_stage_cons(i,j,k,Rho_comp);
-            old_drho_theta(i,j,k) = cur_data_cons(i,j,k,RhoTheta_comp) - cell_stage_cons(i,j,k,RhoTheta_comp);
-            extrap_arr(i,j,k)     = old_drho_theta(i,j,k) + beta_d * (
+        auto Exner_arr = [=] AMREX_GPU_DEVICE (int i, int j, int k) -> amrex::Real {
+            return getExnergivenRTh(cell_stage_cons(i,j,k,RhoTheta_comp));
+        };
+
+        auto old_drho_u = [=] AMREX_GPU_DEVICE (int i, int j, int k) -> amrex::Real {
+            return cur_data_xmom(i,j,k) - cell_stage_xmom(i,j,k);
+        };
+
+        auto old_drho_v = [=] AMREX_GPU_DEVICE (int i, int j, int k) -> amrex::Real {
+            return cur_data_ymom(i,j,k) - cell_stage_ymom(i,j,k);
+        };
+
+        auto old_drho_w = [=] AMREX_GPU_DEVICE (int i, int j, int k) -> amrex::Real {
+            return cur_data_zmom(i,j,k) - cell_stage_zmom(i,j,k);
+        };
+
+        auto old_drho = [=] AMREX_GPU_DEVICE (int i, int j, int k) -> amrex::Real {
+            return cur_data_cons(i,j,k,Rho_comp) - cell_stage_cons(i,j,k,Rho_comp);
+        };
+
+        auto old_drho_theta = [=] AMREX_GPU_DEVICE (int i, int j, int k) -> amrex::Real {
+            return cur_data_cons(i,j,k,RhoTheta_comp) - cell_stage_cons(i,j,k,RhoTheta_comp);
+        };
+
+        auto extrap_arr = [=] AMREX_GPU_DEVICE (int i, int j, int k) -> amrex::Real {
+            return old_drho_theta(i,j,k) + beta_d * (
               (cur_data_cons(i,j  ,k,RhoTheta_comp) - old_data(i,j  ,k,RhoTheta_comp)));
-        });
+        };
+
+        // amrex::ParallelFor(gbx, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
+        //     old_drho(i,j,k)       = cur_data_cons(i,j,k,Rho_comp)      - cell_stage_cons(i,j,k,Rho_comp);
+        //     old_drho_theta(i,j,k) = cur_data_cons(i,j,k,RhoTheta_comp) - cell_stage_cons(i,j,k,RhoTheta_comp);
+        //     extrap_arr(i,j,k)     = old_drho_theta(i,j,k) + beta_d * (
+        //       (cur_data_cons(i,j  ,k,RhoTheta_comp) - old_data(i,j  ,k,RhoTheta_comp)));
+        // });
 
         amrex::ParallelFor(gtbx, gtby, gtbz,
         [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
-            old_drho_u(i,j,k) = cur_data_xmom(i,j,k) - cell_stage_xmom(i,j,k);
+            // old_drho_u(i,j,k) = cur_data_xmom(i,j,k) - cell_stage_xmom(i,j,k);
             new_drho_u(i,j,k) = old_drho_u(i,j,k);
         },
         [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
-            old_drho_v(i,j,k) = cur_data_ymom(i,j,k) - cell_stage_ymom(i,j,k);
+            // old_drho_v(i,j,k) = cur_data_ymom(i,j,k) - cell_stage_ymom(i,j,k);
             new_drho_v(i,j,k) = old_drho_v(i,j,k);
         },
         [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
-            old_drho_w(i,j,k) = cur_data_zmom(i,j,k) - cell_stage_zmom(i,j,k);
+            // old_drho_w(i,j,k) = cur_data_zmom(i,j,k) - cell_stage_zmom(i,j,k);
             new_drho_w(i,j,k) = old_drho_w(i,j,k);
         });
 
-        amrex::ParallelFor(gntbx,
-        [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
-            Exner_arr(i,j,k) = getExnergivenRTh(cell_stage_cons(i,j,k,RhoTheta_comp));
-        });
+        // amrex::ParallelFor(gntbx,
+        // [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept {
+        //     Exner_arr(i,j,k) = getExnergivenRTh(cell_stage_cons(i,j,k,RhoTheta_comp));
+        // });
 
         // *********************************************************************
         // Define updates in the RHS of {x, y, z}-momentum equations
